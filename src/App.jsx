@@ -14,6 +14,10 @@ export default function App() {
     const [currentNoteId, setCurrentNoteId] = useState("")
 
     const currentNote = notes.find(note =>  note.id === currentNoteId) || notes[0]
+
+    const [tempNoteText, setTempNoteText] = useState("")
+
+    const sortedNotes = notes.sort((a, b) => b.updatedOn - a.updatedOn)
     
     // Moving from localStorage to Firebase now
 
@@ -40,10 +44,31 @@ export default function App() {
             setCurrentNoteId(notes[0]?.id)
         }
     })
+
+    useEffect(() => {
+        if(currentNote){
+            setTempNoteText(currentNote.body)
+        }
+    }, [currentNote])
+
+    //Debouncing Logic for delayed requests
+
+    useEffect(() => {
+        const timeOutId = setTimeout(() => {
+            if(tempNoteText !== currentNote.body){
+
+                updateNote(tempNoteText)
+            }
+        }, 500)
+
+        return () => clearTimeout(timeOutId)
+    }, [tempNoteText])
     
     async function createNewNote() {
         const newNote = {
-            body: "# Type your note's title here"
+            body: "# Type your note's title here",
+            createdOn: Date.now(),
+            updatedOn: Date.now()
         }
         // setNotes(prevNotes => [newNote, ...prevNotes])
         const newNoteRef = await addDoc(notesCollection, newNote)
@@ -52,7 +77,7 @@ export default function App() {
     
     async function updateNote(text) {
         const docRef = doc(db, "notes", currentNoteId)
-        await setDoc(docRef, {body : text}, {merge: true})
+        await setDoc(docRef, {body : text, updatedOn: Date.now()}, {merge: true})
     }
     
     async function deleteNote( noteId) {
@@ -72,7 +97,7 @@ export default function App() {
                 className="split"
             >
                 <Sidebar
-                    notes={notes}
+                    notes={sortedNotes}
                     currentNote={currentNote}
                     setCurrentNoteId={setCurrentNoteId}
                     newNote={createNewNote}
@@ -80,8 +105,8 @@ export default function App() {
                 />
                 {
                     <Editor 
-                        currentNote={currentNote} 
-                        updateNote={updateNote} 
+                        tempNoteText={tempNoteText} 
+                        setTempNoteText={setTempNoteText} 
                     />
                 }
             </Split>
